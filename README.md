@@ -1,4 +1,4 @@
-# esp32wlan_stresser
+# ESP32 WLAN Stresser
 
 ## What is this?
 This is a stress test for an ESP32 to check how many packages are lost during WLAN transmission.
@@ -16,6 +16,22 @@ UDP will not retransmit the lost frames, which is essential for this test.
 
 I got hold of [this ESP32 board](https://heltec.org/project/wifi-kit-32/) as my first and it wasn't really reliable when it comes to WLAN.
 I wanted to have a tool on my hand to create statistics on the reliability of different ESP32 boards.
+
+## How to build
+
+### PC Tool
+
+Ensure that boost libraries are installed
+
+    cd pctool/
+    cmake .
+    make
+
+### ESP32
+
+Ensure that [esp-idf](https://github.com/espressif/esp-idf) is activated in your PATH
+
+    idf.py build
 
 ## Example use
 
