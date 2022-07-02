@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-#include "protocol.h"
+#include "../common/protocol.h"
 
 using boost::asio::ip::udp;
 
@@ -22,8 +22,7 @@ udp::endpoint recv_endpoint;
 
 static uint32_t lost_frames				   = 0;
 static int32_t last_received_frame_counter = -1;
-
-static uint32_t total_ping_pong_cycles = 0;
+static uint32_t total_ping_pong_cycles	   = 0;
 
 union
 {
@@ -57,11 +56,12 @@ void handle_receive(const boost::system::error_code& error, std::size_t /*bytes_
 		last_received_frame_counter = recv_buffer.content.frame_counter;
 		total_ping_pong_cycles++;
 
-		printf("RecvFrameCnt:%d LostEspToPc:%d EspRssi:%d LostFramesPcToEsp:%d   %d %d %d %d\n",
-			   recv_buffer.content.frame_counter, lost_frames, recv_buffer.content.rssi,
-			   recv_buffer.content.lost_frames, recv_buffer.content.err_wrong_order_cnt,
-			   recv_buffer.content.err_sendto_cnt, recv_buffer.content.err_recvfrom_cnt,
-			   recv_buffer.content.info_reset_cnt);
+		printf(
+			"RecvFrameCnt:%d Lost2Esp:%d Rssi:%d Lost2Pc:%d   eOrder:%d eSendTo:%d eRecvFrom:%d iReset:%d  TXPwr:%d\n",
+			recv_buffer.content.frame_counter, lost_frames, recv_buffer.content.rssi, recv_buffer.content.lost_frames,
+			recv_buffer.content.err_wrong_order_cnt, recv_buffer.content.err_sendto_cnt,
+			recv_buffer.content.err_recvfrom_cnt, recv_buffer.content.info_reset_cnt,
+			recv_buffer.content.current_max_tx_power);
 
 		sock.async_receive_from(boost::asio::buffer(recv_buffer.raw), recv_endpoint, handle_receive);
 	}
@@ -108,11 +108,16 @@ void timer_tick(const boost::system::error_code& error)
 int main(int argc, const char** argv)
 {
 	send_buffer.content.frame_counter = 0;
-	assert(argc == 2);
+	assert(argc == 3);
 
 	recv_buffer.raw.fill(0);
 	send_buffer.raw.fill(0);
 
+	int32_t tx_power = atoi(argv[2]);
+	assert(tx_power <= 127);
+	assert(tx_power >= -128);
+
+	send_buffer.content.max_tx_power = tx_power;
 	try
 	{
 		udp::resolver resolver(io_service);

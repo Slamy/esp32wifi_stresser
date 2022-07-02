@@ -7,6 +7,10 @@ find -iname *.h -o -iname *.cpp -o -iname *.c | xargs clang-format -i
 
 cd "../pctool"
 pwd
-clang-format -i *.h *.cpp
+clang-format -i *.cpp
+
+cd "../common"
+pwd
+clang-format -i *.h
 
 echo "Finished"

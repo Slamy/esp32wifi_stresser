@@ -17,7 +17,7 @@
 #include <string.h>
 #include <sys/param.h>
 
-#include "../pctool/protocol.h"
+#include "../common/protocol.h"
 #include "wifi.h"
 
 #include <array>
@@ -48,6 +48,9 @@ union
 	std::array<uint8_t, 1000> raw;
 } recv_buffer;
 
+static int8_t current_max_tx_power = -1;
+static int8_t wanted_max_tx_power  = 0;
+
 extern "C" void app_main(void)
 {
 	// Initialize NVS
@@ -61,6 +64,9 @@ extern "C" void app_main(void)
 
 	wifi_init_sta();
 
+	ESP_ERROR_CHECK(esp_wifi_get_max_tx_power(&current_max_tx_power));
+	ESP_LOGI(TAG, "current_max_tx_power %d", current_max_tx_power);
+
 	io_context.emplace();
 	sock.emplace(*io_context, udp::endpoint(udp::v4(), 10000));
 	sock->async_receive_from(asio::buffer(recv_buffer.raw.data(), recv_buffer.raw.size()), sender_endpoint,
@@ -72,6 +78,21 @@ void handle_receive(std::error_code ec, std::size_t bytes_recvd)
 {
 	if (!ec && bytes_recvd > 0)
 	{
+		if (wanted_max_tx_power != recv_buffer.content.max_tx_power)
+		{
+			wanted_max_tx_power = recv_buffer.content.max_tx_power;
+			esp_err_t err		= esp_wifi_set_max_tx_power(wanted_max_tx_power);
+			if (err == ESP_OK)
+			{
+				current_max_tx_power = wanted_max_tx_power;
+				ESP_LOGI(TAG, "current_max_tx_power %d", current_max_tx_power);
+			}
+			else
+			{
+				ESP_LOGI(TAG, "esp_wifi_set_max_tx_power has failed!");
+			}
+		}
+
 		if (last_received_frame_counter > 0)
 		{
 			int32_t lost_frames = recv_buffer.content.frame_counter - (last_received_frame_counter + 1);
@@ -93,7 +114,8 @@ void handle_receive(std::error_code ec, std::size_t bytes_recvd)
 			}
 		}
 
-		ESP_LOGI(TAG, "Received %d %d %d", bytes_recvd, recv_buffer.content.frame_counter, total_lost_frames);
+		ESP_LOGI(TAG, "Received %d frame_counter:%d lost:%d", bytes_recvd, recv_buffer.content.frame_counter,
+				 total_lost_frames);
 
 		last_received_frame_counter = recv_buffer.content.frame_counter;
 
@@ -101,8 +123,9 @@ void handle_receive(std::error_code ec, std::size_t bytes_recvd)
 		esp_wifi_sta_get_ap_info(&ap_info);
 
 		send_buffer.content.frame_counter++;
-		send_buffer.content.rssi		= ap_info.rssi;
-		send_buffer.content.lost_frames = total_lost_frames;
+		send_buffer.content.rssi				 = ap_info.rssi;
+		send_buffer.content.lost_frames			 = total_lost_frames;
+		send_buffer.content.current_max_tx_power = current_max_tx_power;
 
 		sock->async_send_to(asio::buffer(send_buffer.raw.data(), send_buffer.raw.size()), sender_endpoint, handle_send);
 	}

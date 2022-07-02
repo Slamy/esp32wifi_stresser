@@ -13,6 +13,7 @@
 typedef struct
 {
 	uint32_t frame_counter;
+	int8_t max_tx_power;
 } __attribute__((packed)) PackagePcToEsp;
 
 typedef struct
@@ -24,6 +25,7 @@ typedef struct
 	uint32_t err_sendto_cnt;
 	uint32_t err_recvfrom_cnt;
 	uint32_t info_reset_cnt;
+	int8_t current_max_tx_power;
 } __attribute__((packed)) PackageEspToPc;
 
 #endif /* PROTOCOL_H_ */
